@@ -8,20 +8,20 @@
 
 import UIKit
 
-@objc protocol DSInfinitePlayerViewDelegate:NSObjectProtocol {
+@objc protocol DSInfiniteScrollViewDelegate:NSObjectProtocol {
     
-    func numberOfViews(playerView:DSInfinitePlayerView) -> Int
+    func numberOfViews(scrollView:DSInfiniteScrollView) -> Int
     
-    func playingViewClassName(playerView:DSInfinitePlayerView) -> String
+    func scrollingViewClassName(scrollView:DSInfiniteScrollView) -> String
     
-    func playerView(playerView:DSInfinitePlayerView, configView:UIView, atIndex index:Int)
+    func scrollView(scrollView:DSInfiniteScrollView, configView:UIView, atIndex index:Int)
     
-    optional func playerView(playerView:DSInfinitePlayerView, clickedIndex index:Int)
+    optional func scrollView(scrollView:DSInfiniteScrollView, clickedIndex index:Int)
 }
 
-class DSInfinitePlayerView:UIView {
+class DSInfiniteScrollView:UIView {
     
-    weak var delegate:DSInfinitePlayerViewDelegate?
+    weak var delegate:DSInfiniteScrollViewDelegate?
     
     var autoPlaying = true {
         didSet {
@@ -82,7 +82,6 @@ class DSInfinitePlayerView:UIView {
         
         scrollView.frame = self.bounds
         scrollView.contentSize = CGSizeMake(self.frame.width * 3, self.frame.height)
-        scrollView.contentOffset = CGPoint(x: self.frame.width, y: 0)
         
         if let _ = leftView {
             leftView!.frame = CGRectMake(0, leftView!.frame.minY, self.frame.width, self.frame.height)
@@ -94,6 +93,8 @@ class DSInfinitePlayerView:UIView {
             rightView!.frame = CGRectMake(middleView!.frame.maxX, rightView!.frame.minY, self.frame.width, self.frame.height)
         }
         pageControl.frame = CGRectMake(0, self.frame.height - 10, pageControl.frame.width, 10)
+        
+        scrollView.contentOffset = CGPoint(x: self.frame.width, y: 0)
     }
     
     func reloadData() {
@@ -128,12 +129,10 @@ class DSInfinitePlayerView:UIView {
     }
 }
 
-extension DSInfinitePlayerView: UIScrollViewDelegate {
+extension DSInfiniteScrollView: UIScrollViewDelegate {
     
-    func scrollViewWillBeginDragging(scrollView: UIScrollView) {
-        print("scrollview will begin dragging")
-    }
     func scrollViewDidScroll(scrollView: UIScrollView) {
+        print("scroll view did scroll \(scrollView.contentOffset)")
         
         guard let _ = movingView else {
             return
@@ -167,7 +166,7 @@ extension DSInfinitePlayerView: UIScrollViewDelegate {
 
 // MARK: private method
 
-extension DSInfinitePlayerView {
+extension DSInfiniteScrollView {
     private func configView() {
         scrollView.frame = self.bounds
         scrollView.delegate = self
@@ -193,7 +192,7 @@ extension DSInfinitePlayerView {
             return
         }
         
-        var viewName = delegate!.playingViewClassName(self)
+        var viewName = delegate!.scrollingViewClassName(self)
         var aClass = NSClassFromString(viewName) as? UIView.Type
         
         if aClass == nil {
@@ -207,23 +206,23 @@ extension DSInfinitePlayerView {
         
         if let _ = aClass {
             middleView = aClass!.init()
-            delegate!.playerView(self, configView: middleView!, atIndex: displayingIndex)
+            delegate!.scrollView(self, configView: middleView!, atIndex: displayingIndex)
             scrollView.insertSubview(middleView!, belowSubview: pageControl)
             
             leftView = aClass!.init()
-            delegate!.playerView(self, configView: leftView!, atIndex: preNIndex(1))
+            delegate!.scrollView(self, configView: leftView!, atIndex: preNIndex(1))
             scrollView.insertSubview(leftView!, belowSubview: pageControl)
             
             rightView = aClass!.init()
-            delegate!.playerView(self, configView: rightView!, atIndex: nextNIndex(1))
+            delegate!.scrollView(self, configView: rightView!, atIndex: nextNIndex(1))
             scrollView.insertSubview(rightView!, belowSubview: pageControl)
         }
     }
     
     private func updateViews() {
-        delegate!.playerView(self, configView: leftView!, atIndex: preNIndex(1))
-        delegate!.playerView(self, configView: middleView!, atIndex: displayingIndex)
-        delegate!.playerView(self, configView: rightView!, atIndex: nextNIndex(1))
+        delegate!.scrollView(self, configView: leftView!, atIndex: preNIndex(1))
+        delegate!.scrollView(self, configView: middleView!, atIndex: displayingIndex)
+        delegate!.scrollView(self, configView: rightView!, atIndex: nextNIndex(1))
         
         updateFrame()
         movingView = middleView
@@ -260,7 +259,7 @@ extension DSInfinitePlayerView {
         }
         stopTimer()
         
-        timer = NSTimer.scheduledTimerWithTimeInterval(playingInterval, target: self, selector: #selector(DSInfinitePlayerView.timerOut), userInfo: nil, repeats: true)
+        timer = NSTimer.scheduledTimerWithTimeInterval(playingInterval, target: self, selector: #selector(DSInfiniteScrollView.timerOut), userInfo: nil, repeats: true)
     }
     
     func stopTimer() {
@@ -271,7 +270,7 @@ extension DSInfinitePlayerView {
     }
     
     func timerOut(timer:NSTimer) {
-         moveLeftToRight()
+        moveLeftToRight()
         UIView.animateWithDuration(0.5) {
             self.scrollView.contentOffset = CGPointMake(self.scrollView.frame.width, 0)
         }
@@ -296,7 +295,7 @@ extension DSInfinitePlayerView {
         }
         
         leftView = temp
-        delegate!.playerView(self, configView: leftView!, atIndex: index)
+        delegate!.scrollView(self, configView: leftView!, atIndex: index)
         
         updateFrame()
         scrollView.contentOffset = CGPointMake(scrollView.contentOffset.x + self.frame.width, 0)
@@ -319,7 +318,7 @@ extension DSInfinitePlayerView {
             index = nextNIndex(1)
         }
         rightView = temp
-        delegate!.playerView(self, configView: rightView!, atIndex: index)
+        delegate!.scrollView(self, configView: rightView!, atIndex: index)
         
         updateFrame()
         
@@ -327,10 +326,10 @@ extension DSInfinitePlayerView {
     }
 }
 
-extension DSInfinitePlayerView {
+extension DSInfiniteScrollView {
     func handleTapGesture(gesture:UITapGestureRecognizer) {
-        if delegate != nil && delegate!.respondsToSelector(#selector(DSInfinitePlayerViewDelegate.playerView(_:clickedIndex:))) {
-            delegate!.playerView!(self, clickedIndex: displayingIndex)
+        if delegate != nil && delegate!.respondsToSelector(#selector(DSInfiniteScrollViewDelegate.scrollView(_:clickedIndex:))) {
+            delegate!.scrollView!(self, clickedIndex: displayingIndex)
         }
     }
 }
